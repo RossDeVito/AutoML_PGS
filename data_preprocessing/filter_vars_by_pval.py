@@ -53,6 +53,7 @@ from itertools import product
 from collections import defaultdict
 
 import pandas as pd
+from tqdm import tqdm
 
 
 def parse_args():
@@ -141,7 +142,11 @@ if __name__ == '__main__':
 	}
 
 	# Loop through each p-value threshold and window size and filter variants
-	for p_val_thresh_str, window_bp in product(args.pval_thresh, args.window_bp):
+	for p_val_thresh_str, window_bp in tqdm(
+		product(args.pval_thresh, args.window_bp),
+		desc='Filtering variants',
+		total=len(args.pval_thresh) * len(args.window_bp)
+	):
 
 		# Filter by p-value
 		pval_thresh = float(p_val_thresh_str)
