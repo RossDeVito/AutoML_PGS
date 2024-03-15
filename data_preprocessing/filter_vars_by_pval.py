@@ -151,6 +151,7 @@ if __name__ == '__main__':
 		desc='Filtering variants',
 		total=len(args.pval_thresh) * len(args.window_bp)
 	):
+		print(f"Filtering variants for p-value threshold: {p_val_thresh_str} window: {window_bp}")
 
 		# Filter by p-value
 		pval_thresh = float(p_val_thresh_str)
