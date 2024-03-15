@@ -1,4 +1,5 @@
-"""Filter variants for inclusion as PRS model input by p-value & window size.
+"""Filter variants for inclusion as PRS model input by Bonferonni corrected
+p-value & window size.
 
 Has two outputs:
 
@@ -122,6 +123,9 @@ if __name__ == '__main__':
 
 	# Load summary statistics
 	ss_df = pd.read_csv(args.sum_stats_file, sep='\t')
+
+	# Bonferonni correct p-values
+	ss_df[args.p_val_col] = ss_df[args.p_val_col] * len(ss_df)
 
 	# Save all variant IDs that pass any filter
 	all_sig_variants = set()
