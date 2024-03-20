@@ -1,23 +1,38 @@
 """Filter variants for inclusion as PRS model input by Bonferonni corrected
-p-value & window size.
+p-value & window size. 
 
-Has two outputs:
+Will only include thresholds with a number of variants less than or equal
+to --max-variants.
 
-1. A file with the variant IDs one-per-line that pass all the the p-value
-and window size filters (the superset of all pairs of p-value and window size
-combinations). This can be used as input to plink --extract to filter the
-genotype data to just these variants. Will be named filtered_vars_all.txt.
+Saves superset of all variant IDs that pass any filter to a text file, which
+can be used as input to plink --extract to filter the genotype data to just
+these variants.
+
+Has three outputs:
+
+1. Text file with variant IDs one-per-line that pass all the the p-value
+and window size filters (the superset of all pairs of p-value and window 
+size combinations). This can be used as input to plink --extract to filter
+the genotype data to just these variants. Will be named 'filtered_vars_all.txt'.
 
 2. A JSON file that stores which variants are included for each p-value and
-window size combination and a meta data section. The meta data section includes
-info on the number of variants that pass each threshold and the parameters of
-the filtering process. Will be named filtered_vars.json.
+window size combination. Will be named 'filtered_vars.json'. First level keys
+are p-value thresholds, second level keys are window sizes, and values are
+lists of variant IDs.
+
+3. A meta data JSON file, named 'fitered_vars_meta.json'. The meta data
+section includes info on:
+	- filename format for each p-value and window size combination
+	- the number of variants that pass each threshold
+	- the parameters of the filtering process. Will be named filtered_vars.json.
 
 Args:
 
 * -s, --sum-stats-file: Path to whitespace delimited summary statistics
 	file that includes the var_id_col, p_val_col, chrom_col, and pos_col
 	columns.
+* -m, --max-variants: Maximum number of variants to include in the PRS model.
+	Default: 80,000.
 * -p, --pval-thresh: P-value threshold(s) to use for filtering.
 * -w, --window-bp: Window size(s) in base pairs around each variant below the 
 	p-value threshold. Default: 0.
@@ -67,6 +82,12 @@ def parse_args():
 		required=True,
 		help='Path to summary statistics file that includes the var_id_col, '
 			'p_val_col, chrom_col, and pos_col columns.'
+	)
+	parser.add_argument(
+		'-m', '--max-variants',
+		type=int,
+		default=80_000,
+		help='Maximum number of variants to include in the PRS model.'
 	)
 	parser.add_argument(
 		'-p', '--pval-thresh',
@@ -130,19 +151,22 @@ if __name__ == '__main__':
 	# Save all variant IDs that pass any filter
 	all_sig_variants = set()
 
-	# Create output JSON dict
-	out_dict = {
-		"meta": {
+	# Create output JSON dicts
+	var_ids_sets = defaultdict(dict)	# First level keys are p-value
+										# thresholds, second level keys are 
+										# window sizes, and values are lists of
+										# variant IDs
+	
+	meta_dict = {
+		"filtering": {
 			"p_val_col": args.p_val_col,
 			"chrom_col": args.chrom_col,
 			"pos_col": args.pos_col,
 			"pval_thresh": args.pval_thresh,
 			"window_bp": args.window_bp,
+			"max_variants": args.max_variants,
 		},
-		"var_ids": defaultdict(dict)
-		# First level keys are p-value thresholds, second level
-		# keys are window sizes, and values are lists of
-		# variant IDs
+		"filenames": defaultdict(dict),
 	}
 
 	# Loop through each p-value threshold and window size and filter variants
@@ -157,6 +181,11 @@ if __name__ == '__main__':
 		pval_thresh = float(p_val_thresh_str)
 
 		sig_variants = ss_df[ss_df[args.p_val_col] < pval_thresh]
+
+		# Check if number of significant variants is less than max_variants
+		if len(sig_variants) > args.max_variants:
+			print(f"\tMax number of variants exceeded: {len(sig_variants)} > {args.max_variants}")
+			continue
 
 		if window_bp > 0:
 			variant_ids = set(sig_variants[args.var_id_col])
@@ -173,8 +202,12 @@ if __name__ == '__main__':
 
 			sig_variants = ss_df[ss_df[args.var_id_col].isin(variant_ids)]
 
+			if len(sig_variants) > args.max_variants:
+				print(f"\tMax number of variants exceeded: {len(sig_variants)} > {args.max_variants}")
+				continue
+
 		# Add selected variants to output JSON dict
-		out_dict["var_ids"][p_val_thresh_str][window_bp] = sig_variants[
+		var_ids_sets[p_val_thresh_str][window_bp] = sig_variants[
 			args.var_id_col
 		].to_list()
 
@@ -183,25 +216,30 @@ if __name__ == '__main__':
 		print(f"Added {len(sig_variants)} variants for p-val: {p_val_thresh_str} window: {window_bp}")
 		print(f"\tTotal included variants: {len(all_sig_variants)}")
 
+		# Create filename and add to meta data section
+		fname = f"filtered_vars_{p_val_thresh_str}_{window_bp}"
+		meta_dict["filenames"][p_val_thresh_str][window_bp] = fname
+
 	# Save all variant IDs that pass any filter
 	all_sig_variants_file = os.path.join(args.out_dir, 'filtered_vars_all.txt')
 	with open(all_sig_variants_file, 'w') as f:
 		f.write('\n'.join(all_sig_variants))
 
 	# Add counts to meta data section
-	out_dict["meta"]["n_variants_total"] = len(all_sig_variants)
-
-	out_dict["meta"]["n_variants_threshold"] = defaultdict(dict)
+	meta_dict["filtering"]["n_var_total"] = len(all_sig_variants)
+	meta_dict["filtering"]["n_var_threshold"] = defaultdict(dict)
 
 	for p_val_thresh_str in args.pval_thresh:
 		for window_bp in args.window_bp:
-			out_dict["meta"]["n_variants_threshold"][p_val_thresh_str][window_bp] = len(
-				out_dict["var_ids"][p_val_thresh_str][window_bp]
+			meta_dict["filtering"]["n_var_threshold"][p_val_thresh_str][window_bp] = len(
+				var_ids_sets[p_val_thresh_str][window_bp]
 			)
 
-	# Save output JSON file
-	out_json_file = os.path.join(args.out_dir, 'filtered_vars.json')
-	with open(out_json_file, 'w') as f:
-		json.dump(out_dict, f, indent=4)
-
-
+	# Save JSON output
+	var_ids_sets_file = os.path.join(args.out_dir, 'filtered_vars.json')
+	with open(var_ids_sets_file, 'w') as f:
+		json.dump(var_ids_sets, f, indent=4)
+	
+	meta_dict_file = os.path.join(args.out_dir, 'filtered_vars_meta.json')
+	with open(meta_dict_file, 'w') as f:
+		json.dump(meta_dict, f, indent=4)
