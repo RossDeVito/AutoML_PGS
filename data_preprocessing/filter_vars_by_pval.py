@@ -24,7 +24,7 @@ lists of variant IDs.
 section includes info on:
 	- filename format for each p-value and window size combination
 	- the number of variants that pass each threshold
-	- the parameters of the filtering process. Will be named filtered_vars.json.
+	- the parameters of the filtering process.
 
 Args:
 
