@@ -229,8 +229,8 @@ if __name__ == '__main__':
 	meta_dict["filtering"]["n_var_total"] = len(all_sig_variants)
 	meta_dict["filtering"]["n_var_threshold"] = defaultdict(dict)
 
-	for p_val_thresh_str in args.pval_thresh:
-		for window_bp in args.window_bp:
+	for p_val_thresh_str in var_ids_sets.keys():
+		for window_bp in var_ids_sets[p_val_thresh_str].keys():
 			meta_dict["filtering"]["n_var_threshold"][p_val_thresh_str][window_bp] = len(
 				var_ids_sets[p_val_thresh_str][window_bp]
 			)
