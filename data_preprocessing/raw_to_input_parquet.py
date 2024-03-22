@@ -130,6 +130,7 @@ if __name__ == '__main__':
 		raw_var_sets = json.load(f)
 
 	# Load raw genotype data
+	print('Loading raw genotype table...')
 	geno_table = pcsv.read_csv(
 		args.raw_geno,
 		parse_options=pcsv.ParseOptions(delimiter='\t')
@@ -140,9 +141,11 @@ if __name__ == '__main__':
 	geno_table = geno_table.drop(columns=unneeded_cols)
 
 	# Assert no nan values
+	print('Checking for missing values...')
 	assert check_no_missing_in_table(geno_table)
 
 	# Convert all non-IID columns to float32
+	print('Casting columns to float32...')
 	for col in tqdm(geno_table.column_names, desc='Casting columns'):
 		if col != 'IID':
 			cast_col = pc.cast(geno_table[col], 'float32')
@@ -153,10 +156,12 @@ if __name__ == '__main__':
 			)
 
 	# Map variant column names
+	print('Mapping variant column names...')
 	geno_cols = [c for c in geno_table.column_names if c != 'IID']
 	geno_col_mapping = dict([get_var_name_mapping(c) for c in geno_cols])
 
-	# Save updated variant sets
+	# Create updated variant sets
+	print('Updating variant sets...')
 	updated_var_sets = defaultdict(dict)
 	for p_val in raw_var_sets.keys():
 		for window in raw_var_sets[p_val].keys():
@@ -165,10 +170,12 @@ if __name__ == '__main__':
 			]
 
 	# Save updated variant sets to JSON
+	print('Saving updated variant sets...')
 	with open(os.path.join(args.out_dir, args.out_json_fname), 'w') as f:
 		json.dump(updated_var_sets, f)
 
 	# Create parquet file
+	print('Saving parquet file...')
 	parquet_path = os.path.join(args.out_dir, args.out_parquet_fname)
 	pq.write_table(
 		geno_table,
