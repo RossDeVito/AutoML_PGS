@@ -31,10 +31,8 @@ import json
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-# import pandas as pd
-import pyarrow.parquet as pq
-import pyarrow.csv as pcsv
-import pyarrow.compute as pc
+import pandas as pd
+import polars as pl
 from tqdm.autonotebook import tqdm
 
 
@@ -93,34 +91,6 @@ def get_var_name_mapping(col_name):
 	)
 
 
-def check_column_for_missing(table, column_name):
-	if column_name == 'IID':
-		return True  # Skip this column by returning True
-
-	column = table.column(column_name)
-	return not pc.any(
-		pc.is_null(column, nan_is_null=True)
-	).as_py()
-
-
-def check_no_missing_in_table(table):
-	with ThreadPoolExecutor() as executor:
-		futures = {
-			executor.submit(
-				check_column_for_missing, table, column_name
-			): column_name
-			for column_name in table.column_names
-		}
-
-		for future in tqdm(
-			as_completed(futures), total=len(futures), desc='Nan check'
-		):
-			if not future.result():
-				return False
-			
-	return True
-
-
 if __name__ == '__main__':
 
 	args = parse_args()
@@ -129,36 +99,20 @@ if __name__ == '__main__':
 	with open(os.path.join(args.filtered_vars_raw), 'r') as f:
 		raw_var_sets = json.load(f)
 
-	# Load raw genotype data
-	print('Loading raw genotype table...')
-	geno_table = pcsv.read_csv(
+	# Load raw genotype data header with pandas
+	print('Loading raw genotype header...')
+	geno_header = pd.read_csv(
 		args.raw_geno,
-		parse_options=pcsv.ParseOptions(delimiter='\t')
+		sep='\t',
+		nrows=0,
 	)
-
-	# Drop unneeded columns
-	unneeded_cols = ['FID', 'PAT', 'MAT', 'SEX', 'PHENOTYPE']
-	geno_table = geno_table.drop(columns=unneeded_cols)
-
-	# Assert no nan values
-	print('Checking for missing values...')
-	assert check_no_missing_in_table(geno_table)
-
-	# Convert all non-IID columns to float32
-	print('Casting columns to float32...')
-	for col in tqdm(geno_table.column_names, desc='Casting columns'):
-		if col != 'IID':
-			cast_col = pc.cast(geno_table[col], 'float32')
-			geno_table = geno_table.set_column(
-				geno_table.schema.get_field_index(col),
-				col,
-				cast_col
-			)
 
 	# Map variant column names
 	print('Mapping variant column names...')
-	geno_cols = [c for c in geno_table.column_names if c != 'IID']
-	geno_col_mapping = dict([get_var_name_mapping(c) for c in geno_cols])
+	nongeno_cols = set(['FID', 'IID', 'PAT', 'MAT', 'SEX', 'PHENOTYPE'])
+	geno_col_mapping = dict(
+		[get_var_name_mapping(c) for c in geno_header.columns if c not in nongeno_cols]
+	)
 
 	# Create updated variant sets
 	print('Updating variant sets...')
@@ -169,16 +123,38 @@ if __name__ == '__main__':
 				geno_col_mapping[var] for var in raw_var_sets[p_val][window]
 			]
 
-	# Save updated variant sets to JSON
+	# Save updated variant sets
 	print('Saving updated variant sets...')
 	with open(os.path.join(args.out_dir, args.out_json_fname), 'w') as f:
 		json.dump(updated_var_sets, f)
 
-	# Create parquet file
+	# Scan and sink with polars
+	raw_dtypes = {'IID': pl.String}
+	for col in geno_col_mapping.values():
+		raw_dtypes[col] = pl.Float32	# type: ignore
+		
+	lazy_df = pl.scan_csv(
+		args.raw_geno,
+		separator='\t',
+		n_rows=1000,
+		low_memory=False,
+		dtypes=raw_dtypes,
+	).select(
+		*list(raw_dtypes.keys())
+	)
+
+	# Check that there are no missing values
+	print('Checking for missing values...')
+	null_counts = lazy_df.null_count().collect(streaming=True)
+	n_missing = null_counts.sum_horizontal().item()
+	if n_missing > 0:
+		raise ValueError(
+			f'Found {n_missing} missing values in the genotype data.'
+		)
+	
+	# Sink to parquet
 	print('Saving parquet file...')
-	parquet_path = os.path.join(args.out_dir, args.out_parquet_fname)
-	pq.write_table(
-		geno_table,
-		parquet_path,
-		use_dictionary=True
+	lazy_df.sink_parquet(
+		os.path.join(args.out_dir, args.out_parquet_fname),
+		compression="snappy"
 	)
