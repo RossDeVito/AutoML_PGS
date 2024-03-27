@@ -1,0 +1,142 @@
+"""LightBGM estimators for AutoML-PRS.
+
+Main addition is the filtering of variants by p-value and window size
+using a dictionary of variant sets for each p-value and window size
+before fitting/predicting.
+"""
+
+import logging
+import time
+
+from lightgbm import LGBMClassifier, LGBMRanker, LGBMRegressor
+from flaml.automl.model import LGBMEstimator
+from flaml.automl.data import group_counts
+from flaml import tune
+
+
+logger = logging.getLogger(__name__)
+
+
+class LGBMEstimatorPRS(LGBMEstimator):
+	"""LightGBM estimator for AutoML-PRS.
+	
+	Adds two new properties to estimator class:
+
+	- var_sets_map: Dict which maps from p-value + window size thresholds
+		to a subset of variant IDs.
+
+	- covar_cols: List of column names for covariates. These are always
+		included for fitting and predicting.
+
+	Adds hyperparameter 'filter_threshold' which is a string key of
+	var_sets_map. This is used to filter the variants before fitting
+	and prediction.
+
+	When running fit with this estimator, you will have to manually add the
+	space of variant threshold tuples using the 'custom_hp' argument. 
+	var_sets_map and covar_cols are required to be passed in using
+	'fit_kwargs_by_estimator'.
+	"""
+
+	@classmethod
+	def search_space(cls, data_size, **params):
+		upper = max(5, min(32768, int(data_size[0])))  # upper must be larger than lower
+		return {
+			"n_estimators": {
+				"domain": tune.lograndint(lower=4, upper=upper),
+				"init_value": 4,
+				"low_cost_init_value": 4,
+			},
+			"num_leaves": {
+				"domain": tune.lograndint(lower=4, upper=upper),
+				"init_value": 4,
+				"low_cost_init_value": 4,
+			},
+			"min_child_samples": {
+				"domain": tune.lograndint(lower=2, upper=2**7 + 1),
+				"init_value": 20,
+			},
+			"learning_rate": {
+				"domain": tune.loguniform(lower=1 / 1024, upper=1.0),
+				"init_value": 0.1,
+			},
+			"log_max_bin": {  # log transformed with base 2
+				"domain": tune.lograndint(lower=3, upper=11),
+				"init_value": 8,
+			},
+			"colsample_bytree": {
+				"domain": tune.uniform(lower=0.01, upper=1.0),
+				"init_value": 1.0,
+			},
+			"reg_alpha": {
+				"domain": tune.loguniform(lower=1 / 1024, upper=1024),
+				"init_value": 1 / 1024,
+			},
+			"reg_lambda": {
+				"domain": tune.loguniform(lower=1 / 1024, upper=1024),
+				"init_value": 1.0,
+			},
+		}
+
+	def __init__(
+		self,
+		task,
+		**kwargs
+	):
+		super().__init__(task, **kwargs)
+		
+		if self._task.is_classification():
+			self.estimator_class = LGBMClassifier
+		elif task == "rank":
+			self.estimator_class = LGBMRanker
+		else:
+			self.estimator_class = LGBMRegressor
+
+		self.var_sets_map = None
+		self.covar_cols = None
+
+	def _preprocess(self, X):
+		"""Filter variants by p-value and window size.
+		
+		Will always include covariates in the output dataset.
+		"""
+		# Get variant subset
+		var_subset = self.var_sets_map[					# type: ignore
+			self.params['filter_threshold']
+		]
+
+		# Subset X to include only the variant subset and covariates
+		return X[self.covar_cols + var_subset]
+	
+	def _fit(self, X_train, y_train, **kwargs):
+		"""Fit the model.
+		
+		Sets var_sets_map and covar_cols so they are used for this
+		fitting and future predictions.
+		"""
+		current_time = time.time()
+
+		if "groups" in kwargs:
+			kwargs = kwargs.copy()
+			groups = kwargs.pop("groups")
+			if self._task == "rank":
+				kwargs["group"] = group_counts(groups)
+
+		# Update var_sets_map and covar_cols
+		self.var_sets_map = kwargs.pop('var_sets_map')
+		self.covar_cols = kwargs.pop('covar_cols')
+		
+		X_train = self._preprocess(X_train)
+
+		model = self.estimator_class(
+			**{k:v for k,v in self.params.items() if k != 'filter_threshold'}
+		)
+		if logger.level == logging.DEBUG:
+			# xgboost 1.6 doesn't display all the params in the model str
+			logger.debug(f"flaml.automl.model - {model} fit started with params {self.params}")
+		model.fit(X_train, y_train, **kwargs)
+		if logger.level == logging.DEBUG:
+			logger.debug(f"flaml.automl.model - {model} fit finished")
+		train_time = time.time() - current_time
+		self._model = model
+		return train_time

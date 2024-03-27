@@ -29,7 +29,6 @@ import argparse
 import os
 import json
 from collections import defaultdict
-from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import pandas as pd
 import polars as pl
