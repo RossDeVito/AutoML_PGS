@@ -20,4 +20,9 @@ setup(
 		'scikit-learn',
 		'tqdm'
 	],
+	entry_points={
+        'console_scripts': [
+            'fit_automl_prs=automl_prs.fit_automl_prs:main',
+        ],
+    }
 )
