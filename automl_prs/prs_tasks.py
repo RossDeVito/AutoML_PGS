@@ -15,7 +15,7 @@ from sklearn.utils import shuffle
 from flaml.automl.task.generic_task import GenericTask
 from flaml.config import RANDOM_SEED
 
-from lgbm_estimators import LGBMEstimatorPRS
+from automl_prs import LGBMEstimatorPRS
 
 
 logger = logging.getLogger(__name__)

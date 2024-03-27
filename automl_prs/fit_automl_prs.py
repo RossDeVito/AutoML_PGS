@@ -71,7 +71,7 @@ from flaml import AutoML
 from flaml import tune
 from flaml.automl.data import get_output_from_log
 
-from prs_tasks import PRSTask
+from automl_prs import PRSTask
 
 
 def parse_args():
