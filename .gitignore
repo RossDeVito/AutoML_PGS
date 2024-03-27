@@ -1,4 +1,8 @@
 dev_data/output/*
+dev_data/*.txt
+dev_data/*.parquet
+dev_data/*.json
+dev_data/*.tsv
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

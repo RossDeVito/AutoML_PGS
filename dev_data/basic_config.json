@@ -1,1 +1,0 @@
-{"model_type": "lgbm", "metric": "r2", "task": "regression", "time_budget": 60}
