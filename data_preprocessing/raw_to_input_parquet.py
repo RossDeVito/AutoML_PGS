@@ -135,7 +135,6 @@ if __name__ == '__main__':
 	lazy_df = pl.scan_csv(
 		args.raw_geno,
 		separator='\t',
-		n_rows=1000,
 		low_memory=False,
 		dtypes=raw_dtypes,
 	).select(
