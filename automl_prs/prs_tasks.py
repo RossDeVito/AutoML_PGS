@@ -15,7 +15,7 @@ from sklearn.utils import shuffle
 from flaml.automl.task.generic_task import GenericTask
 from flaml.config import RANDOM_SEED
 
-from automl_prs import LGBMEstimatorPRS
+from automl_prs import LGBMEstimatorPRS, LGBMEstimatorPRSv1
 
 
 logger = logging.getLogger(__name__)
@@ -56,10 +56,8 @@ class PRSTask(GenericTask):
 			)
 
 			self._estimators = {
-				# "xgboost": XGBoostSklearnEstimator,
-				# "xgb_limitdepth": XGBoostLimitDepthEstimator,
-				# "rf": RandomForestEstimator,
 				"lgbm": LGBMEstimatorPRS,
+				"lgbm_v1": LGBMEstimatorPRSv1,
 				# "lgbm_spark": SparkLGBMEstimator,
 				# "lrl1": LRL1Classifier,
 				# "lrl2": LRL2Classifier,

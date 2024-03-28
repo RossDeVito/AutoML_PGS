@@ -56,7 +56,7 @@ Args:
 		the sample IDs. Default: 'IID'.
 
 
-python fit_automl_prs.py  -g ../dev_data/geno.parquet -v ../dev_data/var_subsets.json  -p ../dev_data/sim_pheno.tsv  -c ../dev_data/covars.tsv  --train-ids ../dev_data/train_ids.txt  --val-ids ../dev_data/val_ids.txt  --test-ids ../dev_data/test_ids.txt -m ../dev_data/basic_config.json -o ../dev_data/output
+python fit_automl_prs.py  -g ../dev_data/geno.parquet -v ../dev_data/var_subsets.json  -p ../dev_data/sim_pheno.tsv  -c ../dev_data/covars.tsv  --train-ids ../dev_data/train_ids.txt  --val-ids ../dev_data/val_ids.txt  --test-ids ../dev_data/test_ids.txt -m ../dev_data/v1_config.json -o ../dev_data/output
 """
 
 import argparse
