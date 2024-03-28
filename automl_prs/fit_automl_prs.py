@@ -22,6 +22,8 @@ Model configuration JSON file has the keys:
 		Valid options include 'r2', 'mae', 'mse', 'rmse', 'mape'.
 	- task (str): One of 'regression', 'classification'.
 	- time_budget (int): Time budget in seconds for the model fitting.
+	- early_stopping (bool): Whether to use early stopping. If not provided,
+		defaults to False.
 
 Outputs:
 	- Best model configuration as a JSON file ('best_model_config.json').
@@ -146,6 +148,10 @@ def main():
 	print('Loading model configuration...')
 	with open(args.model_config, 'r') as f:
 		model_config = json.load(f)
+
+	if 'early_stopping' not in model_config:
+		model_config['early_stopping'] = False
+
 	# Save config to out_dir
 	with open(os.path.join(args.out_dir, 'input_model_config.json'), 'w') as f:
 		json.dump(model_config, f, indent=4)
@@ -202,9 +208,6 @@ def main():
 	covar_names = [col for col in covars_df.columns if col != args.id_col]
 
 	# Load genotype data for samples in the training and validation sets
-	train_ids_expr = pl.lit(train_ids)
-	val_ids_expr = pl.lit(val_ids)
-
 	geno_lazy = pl.scan_parquet(args.geno_parquet)
 
 	print('Loading training genotype data...')
@@ -280,6 +283,7 @@ def main():
 			}
 		},
 		time_budget=model_config['time_budget'],
+		early_stop=model_config['early_stopping'],
 		metric=model_config['metric'],
 		log_file_name=os.path.join(args.out_dir, 'fit.log')
 	)
