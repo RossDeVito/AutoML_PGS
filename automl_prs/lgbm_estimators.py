@@ -194,6 +194,8 @@ class LGBMEstimatorPRSv1(LGBMEstimatorPRS):
 	
 	def _fit(self, X_train, y_train, **kwargs):
 		"""Fit the model.
+
+		Creates validation split for early stopping.
 		
 		Sets var_sets_map and covar_cols so they are used for this
 		fitting and future predictions.
@@ -263,3 +265,52 @@ class LGBMEstimatorPRSv1(LGBMEstimatorPRS):
 		train_time = time.time() - current_time
 		self._model = model
 		return train_time
+	
+
+class LGBMEstimatorPRSv2(LGBMEstimatorPRSv1):
+	"""LightGBM estimator with early stopping hyperparameter and
+	hyperparameter space adjusted for larger dataset.
+
+	Param suggestions from: https://github.com/Microsoft/LightGBM/issues/695#issuecomment-315591634
+	"""
+
+	@classmethod
+	def search_space(cls, data_size, **params):
+		return {
+			"num_leaves": {
+				"domain": tune.lograndint(lower=7, upper=4095),
+				"init_value": 7,
+				"low_cost_init_value": 7,
+			},
+			"max_depth": {
+				"domain": tune.randint(lower=2, upper=64),
+			},
+			"min_child_samples": {
+				"domain": tune.lograndint(lower=250, upper=8000),
+				"init_value": 2000,
+			},
+			"colsample_bytree": {
+				"domain": tune.uniform(lower=0.4, upper=1.0),
+				"init_value": 1.0,
+			},
+			"subsample": {
+				"domain": tune.uniform(lower=0.4, upper=1.0),
+				"init_value": 1.0,
+			},
+			"reg_alpha": {
+				"domain": tune.loguniform(lower=1e-12, upper=1),
+				"init_value": 1e-9,
+			},
+			"reg_lambda": {
+				"domain": tune.loguniform(lower=1e-12, upper=1000),
+				"init_value": 1e-10,
+			},
+			"early_stopping_rounds": {
+				"domain": tune.randint(lower=10, upper=250),
+				"init_value": 50,
+				"low_cost_init_value": 10,
+			},
+		}
+	
+	def _fit(self, X_train, y_train, **kwargs):
+		super()._fit(X_train, y_train, n_estimators=50000, **kwargs)

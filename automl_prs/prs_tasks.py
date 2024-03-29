@@ -15,7 +15,9 @@ from sklearn.utils import shuffle
 from flaml.automl.task.generic_task import GenericTask
 from flaml.config import RANDOM_SEED
 
-from automl_prs import LGBMEstimatorPRS, LGBMEstimatorPRSv1
+from automl_prs import (
+	LGBMEstimatorPRS, LGBMEstimatorPRSv1, LGBMEstimatorPRSv2
+)
 
 
 logger = logging.getLogger(__name__)
@@ -38,36 +40,12 @@ class PRSTask(GenericTask):
 	@property
 	def estimators(self):
 		if self._estimators is None:
-			# put this into a function to avoid circular dependency
-			from flaml.automl.contrib.histgb import HistGradientBoostingEstimator
-			from flaml.automl.model import (
-				CatBoostEstimator,
-				ExtraTreesEstimator,
-				KNeighborsEstimator,
-				LGBMEstimator,
-				LRL1Classifier,
-				LRL2Classifier,
-				RandomForestEstimator,
-				SparkLGBMEstimator,
-				TransformersEstimator,
-				TransformersEstimatorModelSelection,
-				XGBoostLimitDepthEstimator,
-				XGBoostSklearnEstimator,
-			)
-
 			self._estimators = {
 				"lgbm": LGBMEstimatorPRS,
 				"lgbm_v1": LGBMEstimatorPRSv1,
-				# "lgbm_spark": SparkLGBMEstimator,
-				# "lrl1": LRL1Classifier,
-				# "lrl2": LRL2Classifier,
-				# "catboost": CatBoostEstimator,
-				# "extra_tree": ExtraTreesEstimator,
-				# "kneighbor": KNeighborsEstimator,
-				# "transformer": TransformersEstimator,
-				# "transformer_ms": TransformersEstimatorModelSelection,
-				# "histgb": HistGradientBoostingEstimator,
+				"lgbm_v2": LGBMEstimatorPRSv2,
 			}
+
 		return self._estimators
 
 	def validate_data(
