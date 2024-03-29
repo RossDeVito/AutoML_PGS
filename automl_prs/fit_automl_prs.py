@@ -280,6 +280,7 @@ def main():
 			model_config['model_type']: {
 				'var_sets_map': var_subsets,
 				'covar_cols': covar_names,
+				'print_params': True,
 			}
 		},
 		time_budget=model_config['time_budget'],

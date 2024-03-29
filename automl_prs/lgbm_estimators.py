@@ -194,7 +194,7 @@ class LGBMEstimatorPRSv1(LGBMEstimatorPRS):
 			},
 		}
 	
-	def _fit(self, X_train, y_train, **kwargs):
+	def _fit(self, X_train, y_train, print_params=False, **kwargs):
 		"""Fit the model.
 
 		Creates validation split for early stopping.
@@ -246,15 +246,16 @@ class LGBMEstimatorPRSv1(LGBMEstimatorPRS):
 			stopping_rounds=self.params['early_stopping_rounds']
 		)
 
-		# if 'callbacks' in kwargs:
-		# 	kwargs['callbacks'].append(early_stopping_callback)
-		# else:
-		kwargs['callbacks'] = [early_stopping_callback]
+		if 'callbacks' in kwargs:
+			kwargs['callbacks'].append(early_stopping_callback)
+		else:
+			kwargs['callbacks'] = [early_stopping_callback]
 
-		if logger.level == logging.DEBUG:
-			logger.debug(f"flaml.automl.model - {model} fit started with params {self.params}")
+		if logger.level == logging.DEBUG or print_params:		
+			logger.debug(
+				f"flaml.automl.model - {model} fit started with params {self.params}"
+			)
 		
-
 		model.fit(
 			X_train, 
 			y_train,
@@ -262,8 +263,9 @@ class LGBMEstimatorPRSv1(LGBMEstimatorPRS):
 			**kwargs
 		)
 		
-		if logger.level == logging.DEBUG:
+		if logger.level == logging.DEBUG or print_params:
 			logger.debug(f"flaml.automl.model - {model} fit finished")
+
 		train_time = time.time() - current_time
 		self._model = model
 		return train_time
@@ -314,5 +316,32 @@ class LGBMEstimatorPRSv2(LGBMEstimatorPRSv1):
 			},
 		}
 	
-	def _fit(self, X_train, y_train, **kwargs):
-		super()._fit(X_train, y_train, n_estimators=50000, **kwargs)
+	@classmethod
+	def size(cls, config):
+		num_leaves = int(
+			round(config.get("num_leaves"))
+		)
+		n_estimators = 1000
+		return (num_leaves * 3 + (num_leaves - 1) * 4 + 1.0) * n_estimators * 8
+	
+	def __init__(
+		self,
+		task,
+		max_n_estimators=50000,
+		max_bin=192,
+		**kwargs
+	):
+		super().__init__(task, **kwargs)
+		
+		if self._task.is_classification():
+			self.estimator_class = LGBMClassifier
+		else:
+			self.estimator_class = LGBMRegressor
+
+		# Set n_estimators and max_bin in params
+		self.max_n_estimators = max_n_estimators
+		self.max_bin = max_bin
+
+		self.var_sets_map = None
+		self.covar_cols = None
+	
