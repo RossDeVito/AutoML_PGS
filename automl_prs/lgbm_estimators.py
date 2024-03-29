@@ -110,11 +110,14 @@ class LGBMEstimatorPRS(LGBMEstimator):
 		# Subset X to include only the variant subset and covariates
 		return X[self.covar_cols + var_subset]
 	
-	def _fit(self, X_train, y_train, **kwargs):
+	def _fit(self, X_train, y_train, print_params=False, **kwargs):
 		"""Fit the model.
 		
 		Sets var_sets_map and covar_cols so they are used for this
 		fitting and future predictions.
+
+		Args:
+			print_params (bool): If True, print the parameters before fitting.
 		"""
 		current_time = time.time()
 
@@ -133,11 +136,10 @@ class LGBMEstimatorPRS(LGBMEstimator):
 		model = self.estimator_class(
 			**{k:v for k,v in self.params.items() if k != 'filter_threshold'}
 		)
-		if logger.level == logging.DEBUG:
-			# xgboost 1.6 doesn't display all the params in the model str
+		if logger.level == logging.DEBUG or print_params:
 			logger.debug(f"flaml.automl.model - {model} fit started with params {self.params}")
 		model.fit(X_train, y_train, **kwargs)
-		if logger.level == logging.DEBUG:
+		if logger.level == logging.DEBUG or print_params:
 			logger.debug(f"flaml.automl.model - {model} fit finished")
 		train_time = time.time() - current_time
 		self._model = model
