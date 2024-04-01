@@ -16,7 +16,8 @@ from flaml.automl.task.generic_task import GenericTask
 from flaml.config import RANDOM_SEED
 
 from automl_prs import (
-	LGBMEstimatorPRS, LGBMEstimatorPRSv1, LGBMEstimatorPRSv2
+	LGBMEstimatorPRS, LGBMEstimatorPRSv1, LGBMEstimatorPRSv2,
+	LGBMEstimatorPRSv2x1
 )
 
 
@@ -44,6 +45,7 @@ class PRSTask(GenericTask):
 				"lgbm": LGBMEstimatorPRS,
 				"lgbm_v1": LGBMEstimatorPRSv1,
 				"lgbm_v2": LGBMEstimatorPRSv2,
+				"lgbm_v2x1": LGBMEstimatorPRSv2x1,
 			}
 
 		return self._estimators

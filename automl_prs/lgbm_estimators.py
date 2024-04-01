@@ -209,6 +209,11 @@ class LGBMEstimatorPRSv1(LGBMEstimatorPRS):
 			X_train (pd.DataFrame or pl.DataFrame): Training data.
 			y_train (pd.Series or np.ndarray): Training labels.
 		"""
+		if logger.level == logging.DEBUG or print_params:		
+			logger.debug(
+				f"flaml.automl.model - params: {self.params}"
+			)
+		
 		current_time = time.time()
 
 		if "groups" in kwargs:
@@ -242,6 +247,9 @@ class LGBMEstimatorPRSv1(LGBMEstimatorPRS):
 			**{k:v for k,v in self.params.items() if k not in non_lgbm_params}
 		)
 
+		if logger.level == logging.DEBUG or print_params:
+			logger.debug(f"flaml.automl.model - {model} fit started")
+
 		early_stopping_callback = early_stopping(
 			stopping_rounds=self.params['early_stopping_rounds']
 		)
@@ -250,11 +258,6 @@ class LGBMEstimatorPRSv1(LGBMEstimatorPRS):
 			kwargs['callbacks'].append(early_stopping_callback)
 		else:
 			kwargs['callbacks'] = [early_stopping_callback]
-
-		if logger.level == logging.DEBUG or print_params:		
-			logger.debug(
-				f"flaml.automl.model - {model} fit started with params {self.params}"
-			)
 		
 		model.fit(
 			X_train, 
@@ -345,3 +348,18 @@ class LGBMEstimatorPRSv2(LGBMEstimatorPRSv1):
 		self.var_sets_map = None
 		self.covar_cols = None
 	
+class LGBMEstimatorPRSv2x1(LGBMEstimatorPRSv1):
+	"""LightGBM estimator with early stopping hyperparameter and
+	hyperparameter space adjusted for larger dataset.
+
+	Fewer bins.
+	"""
+
+	def __init__(
+		self,
+		task,
+		max_n_estimators=50000,
+		max_bin=64,
+		**kwargs
+	):
+		super().__init__(task, **kwargs)
