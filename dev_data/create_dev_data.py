@@ -199,6 +199,9 @@ if __name__ == '__main__':
 		'metric': 'r2',
 		'task': 'regression',
 		'time_budget': 60,
+		'early_stopping': True,
+		'p_val': '1e-8',
+		'window': "0",
 	}
 	with open('basic_config.json', 'w') as f:
 		json.dump(basic_config, f)
