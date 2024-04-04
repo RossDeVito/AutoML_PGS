@@ -79,7 +79,7 @@ class LGBMEstimatorPRS(LGBMEstimator):
 		self,
 		task,
 		max_n_estimators=50000,
-		# max_bin=192,
+		max_bin=128,
 		**kwargs
 	):
 		super().__init__(task, **kwargs)
@@ -90,8 +90,8 @@ class LGBMEstimatorPRS(LGBMEstimator):
 			self.estimator_class = LGBMRegressor
 
 		# Set n_estimators and max_bin in params
-		self.max_n_estimators = max_n_estimators
-		# self.max_bin = max_bin
+		self.params['n_estimators'] = max_n_estimators
+		self.params['max_bin'] = max_bin
 
 	def _preprocess(self, X):
 		"""Return X."""
