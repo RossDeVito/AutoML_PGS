@@ -1,2 +1,2 @@
-# AutoML_PGS
+# AutoML_PRS
 AutoML polygenic scores
