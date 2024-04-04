@@ -149,11 +149,11 @@ def parse_args():
 
 def main():
 	args = parse_args()
-	print('Args:')
+	print('Args:', flush=True)
 	pprint(vars(args))
 
 	# Load model configuration
-	print('Loading model configuration...')
+	print('Loading model configuration...', flush=True)
 	with open(args.training_config, 'r') as f:
 		training_config = json.load(f)
 
@@ -168,7 +168,7 @@ def main():
 		json.dump(training_config, f, indent=4)
 
 	# Load sample ID sets as lists
-	print('Loading sample ID sets...')
+	print('Loading sample ID sets...', flush=True)
 	with open(args.train_ids, 'r') as f:
 		train_ids = f.read().splitlines()
 	with open(args.val_ids, 'r') as f:
@@ -177,15 +177,15 @@ def main():
 		test_ids = f.read().splitlines()
 
 	# Load variant subsets
-	print('Loading variant subsets...')
+	print('Loading variant subsets...', flush=True)
 	with open(args.var_subsets, 'r') as f:
 		var_subsets = json.load(f)
 
 	included_vars = var_subsets[training_config['p_val']][training_config['window']]
-	print(f'\tIncluded variants: {len(included_vars)}')
+	print(f'\tIncluded variants: {len(included_vars)}', flush=True)
 
 	# Load phenotype and covariate data
-	print('Loading phenotype data...')
+	print('Loading phenotype data...', flush=True)
 	pheno_df = pl.read_csv(
 		args.pheno,
 		separator='\t',
@@ -194,7 +194,7 @@ def main():
 	assert len(pheno_df_cols) == 1, 'Phenotype file must have exactly one phenotype column.'
 	pheno_name = pheno_df_cols[0]
 
-	print('Loading covariate data...')
+	print('Loading covariate data...', flush=True)
 	covars_df = pl.read_csv(
 		args.covars,
 		separator='\t',
@@ -202,16 +202,17 @@ def main():
 	covar_names = [col for col in covars_df.columns if col != args.id_col]
 
 	# Load genotype data for samples in the training and validation sets
+	print('Scanning genotype data...', flush=True)
 	geno_lazy = pl.scan_parquet(args.geno_parquet)
 
-	print('Loading training genotype data...')
+	print('Loading training genotype data...', flush=True)
 	train_geno_df = geno_lazy.filter(
 		pl.col(args.id_col).is_in(train_ids)
 	).select(
 		[args.id_col] + included_vars
 	).collect(streaming=True)
 
-	print('Loading validation genotype data...')
+	print('Loading validation genotype data...', flush=True)
 	val_geno_df = geno_lazy.filter(
 		pl.col(args.id_col).is_in(val_ids)
 	).select(
@@ -220,7 +221,10 @@ def main():
 
 	# Join genotype data with phenotype and covariate data, then pop labels
 	# and sample IDs
-	print('Joining training genotype data with phenotype and covariate data...')
+	print(
+		'Joining training genotype data with phenotype and covariate data...',
+		flush=True
+	)
 	train_df = train_geno_df.join(
 		pheno_df,
 		args.id_col
@@ -233,7 +237,10 @@ def main():
 
 	train_df = train_df.drop(args.id_col, pheno_name)
 
-	print('Joining validation genotype data with phenotype and covariate data...')
+	print(
+		'Joining validation genotype data with phenotype and covariate data...',
+		flush=True
+	)
 	val_df = val_geno_df.join(
 		pheno_df,
 		args.id_col
@@ -287,7 +294,10 @@ def main():
 
 	end_time = time.time()
 	runtime_seconds = end_time - start_time
-	print(f'\nModel fitting runtime: {runtime_seconds / 3600:.2f} hours')
+	print(
+		f'\nModel fitting runtime: {runtime_seconds / 3600:.2f} hours',
+		flush=True
+	)
 
 	# Save runtime to JSON
 	with open(os.path.join(args.out_dir, 'runtime.json'), 'w') as f:
@@ -354,7 +364,7 @@ def main():
 	# Load test data and evaluate best model
 	del train_df, train_labels
 
-	print('Loading test genotype data...')
+	print('Loading test genotype data...', flush=True)
 	test_geno_df = geno_lazy.filter(
 		pl.col(args.id_col).is_in(test_ids)
 	).select(
@@ -376,7 +386,10 @@ def main():
 	test_df = test_df.drop(args.id_col, pheno_name)
 
 	# Make predictions for validation and test sets
-	print('\nPredicting for validation and test sets with best model')
+	print(
+		'\nPredicting for validation and test sets with best model',
+		flush=True
+	)
 	val_preds = automl.predict(val_df)
 	test_preds = automl.predict(test_df)
 
