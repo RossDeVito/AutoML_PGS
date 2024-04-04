@@ -17,7 +17,7 @@ Requires:
 
 Training configuration JSON file has the keys:
 
-	- model_type (str): One of 'lgbm'. TODO add linear options.
+	- model_type (str): One of 'lgbm' or 'elastic_net'.
 	- metric (str): Valid metric with FLAML see https://microsoft.github.io/FLAML/docs/Use-Cases/Task-Oriented-AutoML#optimization-metric
 		Valid options include 'r2', 'mae', 'mse', 'rmse', 'mape'.
 	- task (str): One of 'regression', 'classification'.

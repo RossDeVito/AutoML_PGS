@@ -15,10 +15,6 @@ from sklearn.utils import shuffle
 from flaml.automl.task.generic_task import GenericTask
 from flaml.config import RANDOM_SEED
 
-from automl_prs import (
-	LGBMEstimatorPRS,
-)
-
 
 logger = logging.getLogger(__name__)
 
@@ -39,9 +35,15 @@ class PRSTask(GenericTask):
 
 	@property
 	def estimators(self):
+		from automl_prs import (
+			LGBMEstimatorPRS,
+			ElasticNetEstimatorPRS,
+		)
+		
 		if self._estimators is None:
 			self._estimators = {
 				"lgbm": LGBMEstimatorPRS,
+				"elastic_net": ElasticNetEstimatorPRS,
 			}
 
 		return self._estimators
