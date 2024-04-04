@@ -1,9 +1,4 @@
-"""LightBGM estimators for AutoML-PRS.
-
-Main addition is the filtering of variants by p-value and window size
-using a dictionary of variant sets for each p-value and window size
-before fitting/predicting.
-"""
+"""LightBGM estimators for AutoML-PRS."""
 
 import logging
 import time
@@ -79,7 +74,7 @@ class LGBMEstimatorPRS(LGBMEstimator):
 		self,
 		task,
 		max_n_estimators=50000,
-		max_bin=128,
+		max_bin=64,
 		**kwargs
 	):
 		super().__init__(task, **kwargs)
