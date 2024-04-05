@@ -137,6 +137,7 @@ class LGBMEstimatorPRS(LGBMEstimator):
 		X_train = self._preprocess(X_train)
 
 		# Create validation set by first creating a binary mask
+		print("Creating validation set", flush=True)
 		train_frac = 1 - val_frac
 		n_samples = X_train.shape[0]
 		val_mask = np.random.choice(
@@ -155,6 +156,7 @@ class LGBMEstimatorPRS(LGBMEstimator):
 		y_train = y_train[~val_mask]
 
 		# Create model
+		print("Creating model", flush=True)
 		non_lgbm_params = ['early_stopping_rounds']
 		self.params['verbose'] = 1
 
@@ -181,6 +183,7 @@ class LGBMEstimatorPRS(LGBMEstimator):
 		else:
 			kwargs['callbacks'] = [early_stopping_callback]
 		
+		print("Starting fit", flush=True)
 		model.fit(
 			X_train, 
 			y_train,

@@ -12,13 +12,42 @@ from flaml import tune
 from sklearn import linear_model
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.base import clone
-from sklearn.base import BaseEstimator, RegressorMixin
+from sklearn.base import BaseEstimator, RegressorMixin, TransformerMixin
 from tqdm import tqdm
 
 
 logger = logging.getLogger(__name__)
 
 
+# class CustomMinMaxScaler(TransformerMixin):
+# 	"""MinMaxScaler to efficiently scale pandas or polars Dataframes."""
+
+# 	def __init__(self):
+# 		super().__init__()
+
+# 		self.min_vals = None
+# 		self.max_vals = None
+
+# 	def fit(self, X):
+# 		if isinstance(X, pd.DataFrame):
+# 			self.min_vals = X.min(axis=0)
+# 			self.max_vals = X.max(axis=0)
+# 		elif isinstance(X, pl.DataFrame):
+# 			self.min_vals = X.min().to_numpy()
+# 			self.max_vals = X.max().to_numpy()
+
+# 		return self
+	
+# 	def transform(self, X):
+# 		assert self.min_vals is not None and self.max_vals is not None, (
+# 			"fit() must be called before transform()"
+# 		)
+
+# 		if isinstance(X, pd.DataFrame):
+# 			return (X - self.min_vals) / (self.max_vals - self.min_vals)
+# 		elif isinstance(X, pl.DataFrame):
+# 			# Do in zero-copy manner
+			
 def subset_data(data, start, end, axis=0):
 	if isinstance(data, (pd.DataFrame, pd.Series)):
 		return data.iloc[start:end] if axis == 0 else data.iloc[:, start:end]	# type: ignore
@@ -139,6 +168,8 @@ class ElasticNetEstimatorPRS(SKLearnEstimator):
 		elif self.scaler is not None and self.scaler_fit:
 			X = self.scaler.transform(X)
 
+		print("Preprocess data done", flush=True)
+		
 		return X
 	
 	def _fit(
