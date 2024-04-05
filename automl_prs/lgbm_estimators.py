@@ -65,11 +65,7 @@ class LGBMEstimatorPRS(LGBMEstimator):
 	
 	@classmethod
 	def size(cls, config):
-		num_leaves = int(
-			round(config.get("num_leaves"))
-		)
-		n_estimators = 1000
-		return (num_leaves * 3 + (num_leaves - 1) * 4 + 1.0) * n_estimators * 8
+		return 1.0
 	
 	def __init__(
 		self,
