@@ -153,8 +153,8 @@ class LGBMEstimatorPRS(LGBMEstimator):
 
 		# Create model
 		non_lgbm_params = ['early_stopping_rounds']
+		self.params['verbose'] = 1
 		model = self.estimator_class(
-			verbose=1,
 			**{k:v for k,v in self.params.items() if k not in non_lgbm_params}
 		)
 
