@@ -29,7 +29,7 @@ def subset_data(data, start, end, axis=0):
 	
 
 class PartitionedEnsembleRows(BaseEstimator, RegressorMixin):
-	def __init__(self, estimator, n_partitions=3, verbose=0, **kwargs):
+	def __init__(self, estimator, n_partitions=3, verbose=1, **kwargs):
 		self.estimator = estimator
 		self.n_partitions = n_partitions
 		self.verbose = verbose
@@ -77,7 +77,7 @@ class PartitionedEnsembleRows(BaseEstimator, RegressorMixin):
 
 
 class ElasticNetEstimatorPRS(SKLearnEstimator):
-	"""Elastic net estimator using n_partitions paritions."""
+	"""Elastic net estimator."""
 
 	@classmethod
 	def search_space(cls, data_size, task):
@@ -109,11 +109,66 @@ class ElasticNetEstimatorPRS(SKLearnEstimator):
 	def __init__(
 			self,
 			task="regression",
-			n_partitions=3,
 			n_jobs=None,
 			scale=True,
 			**config
 		):
+		print("initialize ElasticNetEstimatorPRS", flush=True)
+		super().__init__(task, **config)
+		
+		if task != "regression":
+			raise ValueError(
+				"ElasticNetEstimatorPRS only supports regression tasks."
+			)
+		
+		if scale:
+			self.scaler = MinMaxScaler()
+			self.scaler_fit = False
+		else:
+			self.scaler = None
+			self.scaler_fit = True
+		
+		self.estimator_class = linear_model.ElasticNet
+
+	def _preprocess(self, X):
+		"""Preprocess data, including scaling."""
+		print("Preprocess data", flush=True)
+		if self.scaler is not None and not self.scaler_fit:
+			X = self.scaler.fit_transform(X)
+			self.scaler_fit = True
+		elif self.scaler is not None and self.scaler_fit:
+			X = self.scaler.transform(X)
+
+		return X
+	
+	def _fit(
+		self,
+		X_train,
+		y_train,
+		print_params=False,
+		**kwargs
+	):
+		"""Fit the model with early stopping."""
+		print("Fit the model", flush=True)
+		if print_params:
+			pprint(self.params)
+		
+		super()._fit(X_train, y_train, **kwargs)
+
+
+class NPartElasticNetEstimatorPRS(ElasticNetEstimatorPRS):
+	"""Elastic net estimator using n_partitions of the samples for
+	memory reasons."""
+
+	def __init__(
+		self,
+		task="regression",
+		n_partitions=3,
+		n_jobs=None,
+		scale=True,
+		**config
+	):
+		print("Initialize NPartElasticNetEstimatorPRS", flush=True)
 		super().__init__(
 			task,
 			n_partitions=n_partitions,
@@ -134,26 +189,3 @@ class ElasticNetEstimatorPRS(SKLearnEstimator):
 			self.scaler_fit = True
 		
 		self.estimator_class = PartitionedEnsembleRows
-
-	def _preprocess(self, X):
-		"""Preprocess data, including scaling."""
-		if self.scaler is not None and not self.scaler_fit:
-			X = self.scaler.fit_transform(X)
-			self.scaler_fit = True
-		elif self.scaler is not None and self.scaler_fit:
-			X = self.scaler.transform(X)
-
-		return X
-	
-	def _fit(
-		self,
-		X_train,
-		y_train,
-		print_params=False,
-		**kwargs
-	):
-		"""Fit the model with early stopping."""
-		if print_params:
-			pprint(self.params)
-		
-		super()._fit(X_train, y_train, **kwargs)
