@@ -77,6 +77,7 @@ class LGBMEstimatorPRS(LGBMEstimator):
 		max_bin=32,
 		**kwargs
 	):
+		print("initialize LGBMEstimatorPRS", flush=True)
 		super().__init__(task, **kwargs)
 		
 		if self._task.is_classification():
@@ -90,6 +91,7 @@ class LGBMEstimatorPRS(LGBMEstimator):
 
 	def _preprocess(self, X):
 		"""Return X."""
+		print("Preprocess data", flush=True)
 		return X
 	
 	def _fit(
@@ -117,6 +119,7 @@ class LGBMEstimatorPRS(LGBMEstimator):
 				Default is 0.1.
 			print_params (bool): If True, log the parameters before fitting.
 		"""
+		print("Fit model", flush=True)
 		if print_params:		
 			logger.debug(
 				f"flaml.automl.model - params: {self.params}"
