@@ -16,6 +16,9 @@ from sklearn.base import BaseEstimator, RegressorMixin, TransformerMixin
 from tqdm import tqdm
 
 
+SCALE_BY_DEFAULT = False
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -139,7 +142,7 @@ class ElasticNetEstimatorPRS(SKLearnEstimator):
 			self,
 			task="regression",
 			n_jobs=None,
-			scale=True,
+			scale=SCALE_BY_DEFAULT,
 			**config
 		):
 		print("initialize ElasticNetEstimatorPRS", flush=True)
@@ -196,7 +199,7 @@ class NPartElasticNetEstimatorPRS(ElasticNetEstimatorPRS):
 		task="regression",
 		n_partitions=3,
 		n_jobs=None,
-		scale=True,
+		scale=SCALE_BY_DEFAULT,
 		**config
 	):
 		print("Initialize NPartElasticNetEstimatorPRS", flush=True)
