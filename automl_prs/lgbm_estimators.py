@@ -74,7 +74,7 @@ class LGBMEstimatorPRS(LGBMEstimator):
 		self,
 		task,
 		max_n_estimators=50000,
-		max_bin=64,
+		max_bin=32,
 		**kwargs
 	):
 		super().__init__(task, **kwargs)
@@ -154,6 +154,7 @@ class LGBMEstimatorPRS(LGBMEstimator):
 		# Create model
 		non_lgbm_params = ['early_stopping_rounds']
 		model = self.estimator_class(
+			verbose=1,
 			**{k:v for k,v in self.params.items() if k not in non_lgbm_params}
 		)
 
