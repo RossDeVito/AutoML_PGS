@@ -17,6 +17,7 @@ setup(
 		'optuna',
 		'pandas',
 		'polars',
+		'psutil',
 		'scikit-learn',
 		'tqdm'
 	],
