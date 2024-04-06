@@ -55,7 +55,7 @@ def subset_data(data, start, end, axis=0):
 	if isinstance(data, (pd.DataFrame, pd.Series)):
 		return data.iloc[start:end] if axis == 0 else data.iloc[:, start:end]	# type: ignore
 	elif isinstance(data, pl.DataFrame):
-		return data.filter(pl.col("*").slice(start, end))
+		return data.slice(start, end - start)
 	else:
 		return data[start:end] if axis == 0 else data[:, start:end]
 	
@@ -124,7 +124,7 @@ class ElasticNetEstimatorPRS(SKLearnEstimator):
 			},
 			"max_iter": {
 				"domain": tune.lograndint(lower=800, upper=10000),
-				"init_value": 1000,
+				"init_value": 2500,
 				"low_cost_init_value": 800,
 			},
 			"tol": {
@@ -142,7 +142,7 @@ class ElasticNetEstimatorPRS(SKLearnEstimator):
 			self,
 			task="regression",
 			n_jobs=None,
-			scale=SCALE_BY_DEFAULT,
+			scale=True,
 			**config
 		):
 		print("initialize ElasticNetEstimatorPRS", flush=True)

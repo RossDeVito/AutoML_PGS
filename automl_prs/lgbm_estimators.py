@@ -72,7 +72,7 @@ class LGBMEstimatorPRS(LGBMEstimator):
 		task,
 		max_n_estimators=50000,
 		max_bin=32,
-		free_mem_frac=0.9,
+		free_mem_frac=0.5,
 		**kwargs
 	):
 		print("initialize LGBMEstimatorPRS", flush=True)
