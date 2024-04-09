@@ -22,34 +22,49 @@ SCALE_BY_DEFAULT = False
 logger = logging.getLogger(__name__)
 
 
-# class CustomMinMaxScaler(TransformerMixin):
-# 	"""MinMaxScaler to efficiently scale pandas or polars Dataframes."""
+class CustomMinMaxScaler(TransformerMixin):
+	"""MinMaxScaler to efficiently scale pandas or polars Dataframes."""
 
-# 	def __init__(self):
-# 		super().__init__()
+	def __init__(self):
+		super().__init__()
 
-# 		self.min_vals = None
-# 		self.max_vals = None
+		self.min_vals = None
+		self.max_vals = None
 
-# 	def fit(self, X):
-# 		if isinstance(X, pd.DataFrame):
-# 			self.min_vals = X.min(axis=0)
-# 			self.max_vals = X.max(axis=0)
-# 		elif isinstance(X, pl.DataFrame):
-# 			self.min_vals = X.min().to_numpy()
-# 			self.max_vals = X.max().to_numpy()
+	def fit(self, X):
+		if isinstance(X, pd.DataFrame):
+			self.min_vals = X.min(axis=0)
+			self.max_vals = X.max(axis=0)
+		elif isinstance(X, pl.DataFrame):
+			self.min_vals = X.min().to_numpy()[0]
+			self.max_vals = X.max().to_numpy()[0]
 
-# 		return self
+		return self
 	
-# 	def transform(self, X):
-# 		assert self.min_vals is not None and self.max_vals is not None, (
-# 			"fit() must be called before transform()"
-# 		)
+	def transform(self, X):
+		assert self.min_vals is not None and self.max_vals is not None, (
+			"fit() must be called before transform()"
+		)
 
-# 		if isinstance(X, pd.DataFrame):
-# 			return (X - self.min_vals) / (self.max_vals - self.min_vals)
-# 		elif isinstance(X, pl.DataFrame):
-# 			# Do in zero-copy manner
+		if isinstance(X, pd.DataFrame):
+			return (X - self.min_vals) / (self.max_vals - self.min_vals)
+		elif isinstance(X, pl.DataFrame):
+			# Subtract min_vals and divide by the range (max_vals - min_vals)
+			# To do this in a no-copy manner, we use Polars' functionality
+			# that allows operations directly on the DataFrame
+			for column in X.columns:
+				min_val = self.min_vals[X.columns.index(column)]
+				max_val = self.max_vals[X.columns.index(column)]
+				range_val = max_val - min_val
+				if range_val == 0:
+					scaled_column = X[column] - min_val
+				else:
+					scaled_column = (X[column] - min_val) / range_val
+
+				# Use with_columns to update the column in-place
+				X = X.with_columns(scaled_column.alias(column))
+			return X
+		
 			
 def subset_data(data, start, end, axis=0):
 	if isinstance(data, (pd.DataFrame, pd.Series)):

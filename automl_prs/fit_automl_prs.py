@@ -262,9 +262,9 @@ def main():
 		log_type='all',
 		log_training_metric=True,
 		skip_transform=True,
-		retrain_full='budget',	# do best effort to retrain without violating the time budget.
-		sample=True,
-		min_sample_size=training_config['min_sample_size'],
+		retrain_full=False,
+		sample=False,
+		# min_sample_size=training_config['min_sample_size'],
 		early_stop=True,
 		starting_points='static',
 		verbose=3,
