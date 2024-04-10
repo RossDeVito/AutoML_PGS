@@ -71,8 +71,7 @@ class LGBMEstimatorPRS(LGBMEstimator):
 		self,
 		task,
 		max_n_estimators=50000,
-		max_bin=32,
-		# free_mem_frac=0.75,
+		max_bin=127,
 		**kwargs
 	):
 		print("initialize LGBMEstimatorPRS", flush=True)
@@ -86,8 +85,6 @@ class LGBMEstimatorPRS(LGBMEstimator):
 		# Set n_estimators and max_bin in params
 		self.params['n_estimators'] = max_n_estimators
 		self.params['max_bin'] = max_bin
-
-		# self.free_mem_frac = free_mem_frac
 
 	def _preprocess(self, X):
 		"""Return X."""
@@ -160,14 +157,7 @@ class LGBMEstimatorPRS(LGBMEstimator):
 		non_lgbm_params = ['early_stopping_rounds']
 		self.params['verbose'] = 1
 
-		# hist_pool_size = (
-		# 	psutil.virtual_memory().available / (2 ** 20)
-		# ) * self.free_mem_frac
-
-		# print(f"hist_pool_size: {hist_pool_size} MB", flush=True)
-
 		model = self.estimator_class(
-			# histogram_pool_size=hist_pool_size,
 			**{k:v for k,v in self.params.items() if k not in non_lgbm_params}
 		)
 
