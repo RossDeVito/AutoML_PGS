@@ -37,6 +37,7 @@ class PRSTask(GenericTask):
 	def estimators(self):
 		from automl_prs import (
 			LGBMEstimatorPRS,
+			LGBMEstimatorMultiThreshPRS,
 			ElasticNetEstimatorPRS,
 			NPartElasticNetEstimatorPRS,
 		)
@@ -44,6 +45,7 @@ class PRSTask(GenericTask):
 		if self._estimators is None:
 			self._estimators = {
 				"lgbm": LGBMEstimatorPRS,
+				"lgbm_multi_thresh": LGBMEstimatorMultiThreshPRS,
 				"elastic_net": ElasticNetEstimatorPRS,
 				"npart_elastic_net": NPartElasticNetEstimatorPRS,
 			}

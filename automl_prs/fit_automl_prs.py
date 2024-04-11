@@ -15,21 +15,24 @@ Requires:
 		for the training, validation, and test sets.
 	- A model configuration JSON file.
 
-Training configuration JSON file has the keys:
+Training configuration JSON file requires the keys:
 
-	- model_type (str): One of 'lgbm' or 'elastic_net'.
+	- model_type (str): If specifying one p-value and window size threshold,
+		one of 'lgbm', 'elastic_net', or 'npart_elastic_net'. If searching
+		over multiple thresholds, one of 'lgbm_multi_thresh'. TODO: linear versions
 	- metric (str): Valid metric with FLAML see https://microsoft.github.io/FLAML/docs/Use-Cases/Task-Oriented-AutoML#optimization-metric
 		Valid options include 'r2', 'mae', 'mse', 'rmse', 'mape'.
 	- task (str): One of 'regression', 'classification'.
 	- time_budget (int): Time budget in seconds for the model fitting.
 	- early_stopping (bool): Whether to use early stopping. If not provided,
 		defaults to False.
+
+And these keys are required if not using a 'multi_thresh' model:
+
 	- p_val (str): p-value threshold for variant inclusion. Must correspond
 		to a key in the variant subsets JSON file.
 	- window (str): Window size for variant inclusion. Must correspond to a
 		key under the p_val key in the variant subsets JSON file.
-	- min_sample_size (int): Minimum number of samples to use for training
-		when subsampling in initial rounds of AutoML. Default: 100,000.
 
 Outputs:
 
@@ -80,6 +83,7 @@ import polars as pl
 import matplotlib.pyplot as plt
 from flaml import AutoML
 from flaml.automl.data import get_output_from_log
+from flaml import tune
 
 from automl_prs import PRSTask
 
@@ -153,15 +157,14 @@ def main():
 	pprint(vars(args))
 
 	# Load model configuration
-	print('Loading model configuration...', flush=True)
+	print('Loading training configuration...', flush=True)
 	with open(args.training_config, 'r') as f:
 		training_config = json.load(f)
 
 	if 'early_stopping' not in training_config:
 		training_config['early_stopping'] = False
 
-	if 'min_sample_size' not in training_config:
-		training_config['min_sample_size'] = 100_000
+	multi_thresh = training_config['model_type'].endswith('multi_thresh')
 
 	# Save training config to out_dir
 	with open(os.path.join(args.out_dir, 'training_config.json'), 'w') as f:
@@ -176,13 +179,34 @@ def main():
 	with open(args.test_ids, 'r') as f:
 		test_ids = f.read().splitlines()
 
-	# Load variant subsets
+	# Load variant subsets and create hyperparameter space
 	print('Loading variant subsets...', flush=True)
 	with open(args.var_subsets, 'r') as f:
 		var_subsets = json.load(f)
 
-	included_vars = var_subsets[training_config['p_val']][training_config['window']]
-	print(f'\tIncluded variants: {len(included_vars)}', flush=True)
+	if multi_thresh:
+		# Flatten var_subsets by combining p-value and window size keys
+		new_var_subsets = dict()
+		for p_val in var_subsets:
+			for window in var_subsets[p_val]:
+				new_var_subsets[
+					f"p-val:{p_val}, window:{window}"
+				] = var_subsets[p_val][window]
+		var_subsets = new_var_subsets
+		
+		cutoff_keys = list(var_subsets.keys())
+		cutoff_counts = [len(var_subsets[k]) for k in cutoff_keys]
+
+		cutoff_hp_space = {
+			'filter_threshold': {
+				'domain': tune.choice(cutoff_keys),
+				'low_cost_init_value': cutoff_keys[np.argmin(cutoff_counts)],
+				'cat_hp_cost': np.log(cutoff_counts).tolist(),
+			}
+		}
+	else:
+		included_vars = var_subsets[training_config['p_val']][training_config['window']]
+		print(f'\tIncluded variants: {len(included_vars)}', flush=True)
 
 	# Load phenotype and covariate data
 	print('Loading phenotype data...', flush=True)
@@ -206,18 +230,28 @@ def main():
 	geno_lazy = pl.scan_parquet(args.geno_parquet)
 
 	print('Loading training genotype data...', flush=True)
-	train_geno_df = geno_lazy.filter(
-		pl.col(args.id_col).is_in(train_ids)
-	).select(
-		[args.id_col] + included_vars
-	).collect(streaming=True)
+	if multi_thresh:
+		train_geno_df = geno_lazy.filter(
+			pl.col(args.id_col).is_in(train_ids)
+		).collect(streaming=True)
+	else:
+		train_geno_df = geno_lazy.filter(
+			pl.col(args.id_col).is_in(train_ids)
+		).select(
+			[args.id_col] + included_vars
+		).collect(streaming=True)
 
 	print('Loading validation genotype data...', flush=True)
-	val_geno_df = geno_lazy.filter(
-		pl.col(args.id_col).is_in(val_ids)
-	).select(
-		[args.id_col] + included_vars
-	).collect(streaming=True)
+	if multi_thresh:
+		val_geno_df = geno_lazy.filter(
+			pl.col(args.id_col).is_in(val_ids)
+		).collect(streaming=True)
+	else:
+		val_geno_df = geno_lazy.filter(
+			pl.col(args.id_col).is_in(val_ids)
+		).select(
+			[args.id_col] + included_vars
+		).collect(streaming=True)
 
 	# Join genotype data with phenotype and covariate data, then pop labels
 	# and sample IDs
@@ -264,7 +298,6 @@ def main():
 		skip_transform=True,
 		retrain_full=False,
 		sample=False,
-		# min_sample_size=training_config['min_sample_size'],
 		early_stop=True,
 		starting_points='static',
 		verbose=3,
@@ -274,23 +307,47 @@ def main():
 	# Fit model
 	start_time = time.time()
 
-	automl.fit(
-		X_train=train_df,
-		y_train=train_labels,
-		X_val=val_df,
-		y_val=val_labels,
-		task=PRSTask(training_config['task']),
-		estimator_list=[training_config['model_type']],
-		fit_kwargs_by_estimator={
-			training_config['model_type']: {
-				'print_params': True,
-			}
-		},
-		time_budget=training_config['time_budget'],
-		early_stop=training_config['early_stopping'],
-		metric=training_config['metric'],
-		log_file_name=os.path.join(args.out_dir, 'fit.log')
-	)
+	if multi_thresh:
+		automl.fit(
+			X_train=train_df,
+			y_train=train_labels,
+			X_val=val_df,
+			y_val=val_labels,
+			task=PRSTask(training_config['task']),
+			estimator_list=[training_config['model_type']],
+			custom_hp={
+				training_config['model_type']: cutoff_hp_space
+			},
+			fit_kwargs_by_estimator={
+				training_config['model_type']: {
+					'var_sets_map': var_subsets,
+					'covar_cols': covar_names,
+					'print_params': True,
+				}
+			},
+			time_budget=training_config['time_budget'],
+			early_stop=training_config['early_stopping'],
+			metric=training_config['metric'],
+			log_file_name=os.path.join(args.out_dir, 'fit.log')
+		)
+	else:
+		automl.fit(
+			X_train=train_df,
+			y_train=train_labels,
+			X_val=val_df,
+			y_val=val_labels,
+			task=PRSTask(training_config['task']),
+			estimator_list=[training_config['model_type']],
+			fit_kwargs_by_estimator={
+				training_config['model_type']: {
+					'print_params': True,
+				}
+			},
+			time_budget=training_config['time_budget'],
+			early_stop=training_config['early_stopping'],
+			metric=training_config['metric'],
+			log_file_name=os.path.join(args.out_dir, 'fit.log')
+		)
 
 	end_time = time.time()
 	runtime_seconds = end_time - start_time
@@ -365,11 +422,16 @@ def main():
 	del train_df, train_labels
 
 	print('Loading test genotype data...', flush=True)
-	test_geno_df = geno_lazy.filter(
-		pl.col(args.id_col).is_in(test_ids)
-	).select(
-		[args.id_col] + included_vars
-	).collect(streaming=True)
+	if multi_thresh:
+		test_geno_df = geno_lazy.filter(
+			pl.col(args.id_col).is_in(test_ids)
+		).collect(streaming=True)
+	else:
+		test_geno_df = geno_lazy.filter(
+			pl.col(args.id_col).is_in(test_ids)
+		).select(
+			[args.id_col] + included_vars
+		).collect(streaming=True)
 
 	# Join genotype data with phenotype and covariate data, then pop labels
 	# and sample IDs
