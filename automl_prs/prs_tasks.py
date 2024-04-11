@@ -39,6 +39,7 @@ class PRSTask(GenericTask):
 			LGBMEstimatorPRS,
 			LGBMEstimatorMultiThreshPRS,
 			ElasticNetEstimatorPRS,
+			ElasticNetEstimatorMultiThreshPRS,
 			NPartElasticNetEstimatorPRS,
 		)
 		
@@ -47,6 +48,7 @@ class PRSTask(GenericTask):
 				"lgbm": LGBMEstimatorPRS,
 				"lgbm_multi_thresh": LGBMEstimatorMultiThreshPRS,
 				"elastic_net": ElasticNetEstimatorPRS,
+				"elastic_net_multi_thresh": ElasticNetEstimatorMultiThreshPRS,
 				"npart_elastic_net": NPartElasticNetEstimatorPRS,
 			}
 

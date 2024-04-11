@@ -160,7 +160,6 @@ class ElasticNetEstimatorPRS(SKLearnEstimator):
 			scale=SCALE_BY_DEFAULT,
 			**config
 		):
-		print("initialize ElasticNetEstimatorPRS", flush=True)
 		super().__init__(task, **config)
 		
 		if task != "regression":
@@ -179,14 +178,11 @@ class ElasticNetEstimatorPRS(SKLearnEstimator):
 
 	def _preprocess(self, X):
 		"""Preprocess data, including scaling."""
-		print("Preprocess data", flush=True)
 		if self.scaler is not None and not self.scaler_fit:
 			X = self.scaler.fit_transform(X)
 			self.scaler_fit = True
 		elif self.scaler is not None and self.scaler_fit:
 			X = self.scaler.transform(X)
-
-		print("Preprocess data done", flush=True)
 		
 		return X
 	
@@ -197,10 +193,65 @@ class ElasticNetEstimatorPRS(SKLearnEstimator):
 		print_params=False,
 		**kwargs
 	):
-		"""Fit the model with early stopping."""
-		print("Fit the model", flush=True)
+		"""Fit the model."""
 		if print_params:
 			pprint(self.params)
+		
+		super()._fit(X_train, y_train, **kwargs)
+
+
+class ElasticNetEstimatorMultiThreshPRS(ElasticNetEstimatorPRS):
+	"""Elastic net estimator for AutoML-PRS with p-value and window
+	size thresholds considered.
+	"""
+
+	def __init__(
+		self,
+		filter_threshold,
+		task="regression",
+		n_jobs=None,
+		scale=SCALE_BY_DEFAULT,
+		**config
+	):
+		super().__init__(task, **config)
+
+		self.var_sets_map = None
+		self.covar_cols = None
+		self.filter_threshold = filter_threshold
+
+	def _preprocess(self, X):
+		"""Preprocess data by subsetting to variables included at threshold,
+		then optional scaling."""
+		# Get variant subset
+		var_subset = self.var_sets_map[					# type: ignore
+			self.filter_threshold
+		]
+		X = X[self.covar_cols + var_subset]
+
+		if self.scaler is not None and not self.scaler_fit:
+			X = self.scaler.fit_transform(X)
+			self.scaler_fit = True
+		elif self.scaler is not None and self.scaler_fit:
+			X = self.scaler.transform(X)
+		
+		return X
+	
+	def _fit(
+		self,
+		X_train,
+		y_train,
+		var_sets_map,
+		covar_cols,
+		print_params=False,
+		**kwargs
+	):
+		"""Fit the model."""
+		if print_params:
+			pprint(self.params)
+
+		# Update var_sets_map and covar_cols
+		self.var_sets_map = var_sets_map
+		self.covar_cols = covar_cols
 		
 		super()._fit(X_train, y_train, **kwargs)
 
