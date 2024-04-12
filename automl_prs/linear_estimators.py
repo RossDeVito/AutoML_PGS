@@ -248,6 +248,7 @@ class ElasticNetEstimatorMultiThreshPRS(ElasticNetEstimatorPRS):
 		"""Fit the model."""
 		if print_params:
 			pprint(self.params)
+			print(f"Filter threshold: {self.filter_threshold}", flush=True)
 
 		# Update var_sets_map and covar_cols
 		self.var_sets_map = var_sets_map

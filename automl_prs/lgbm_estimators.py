@@ -221,6 +221,8 @@ class LGBMEstimatorMultiThreshPRS(LGBMEstimatorPRS):
 		self,
 		X_train,
 		y_train,
+		var_sets_map,
+		covar_cols,
 		val_frac=0.1,
 		print_params=False,
 		**kwargs
@@ -258,8 +260,8 @@ class LGBMEstimatorMultiThreshPRS(LGBMEstimatorPRS):
 				kwargs["group"] = group_counts(groups)
 
 		# Update var_sets_map and covar_cols
-		self.var_sets_map = kwargs.pop('var_sets_map')
-		self.covar_cols = kwargs.pop('covar_cols')
+		self.var_sets_map = var_sets_map
+		self.covar_cols = covar_cols
 		
 		X_train = self._preprocess(X_train)
 
