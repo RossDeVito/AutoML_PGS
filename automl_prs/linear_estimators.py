@@ -259,12 +259,13 @@ class ElasticNetEstimatorMultiThreshPRS(ElasticNetEstimatorPRS):
 
 class NPartElasticNetEstimatorPRS(ElasticNetEstimatorPRS):
 	"""Elastic net estimator using n_partitions of the samples for
-	memory reasons."""
+	memory reasons.
+	"""
 
 	def __init__(
 		self,
 		task="regression",
-		n_partitions=3,
+		n_partitions=2,
 		n_jobs=None,
 		scale=SCALE_BY_DEFAULT,
 		**config
@@ -290,3 +291,77 @@ class NPartElasticNetEstimatorPRS(ElasticNetEstimatorPRS):
 			self.scaler_fit = True
 		
 		self.estimator_class = PartitionedEnsembleRows
+
+
+class NPartElasticNetEstimatorMultiThreshPRS(NPartElasticNetEstimatorPRS):
+	"""Elastic net estimator for AutoML-PRS with multiple p-value and window
+	size thresholds considered, using n_partitions of the samples for
+	memory reasons.
+	"""
+
+	def __init__(
+		self,
+		filter_threshold,
+		task="regression",
+		n_partitions=2,
+		n_jobs=None,
+		scale=SCALE_BY_DEFAULT,
+		**config
+	):
+		super().__init__(
+			task,
+			n_partitions=n_partitions,
+			**config
+		)
+		
+		if task != "regression":
+			raise ValueError(
+				"ElasticNetEstimatorPRS only supports regression tasks."
+			)
+		
+		if scale:
+			self.scaler = CustomMinMaxScaler()
+			self.scaler_fit = False
+		else:
+			self.scaler = None
+			self.scaler_fit = True
+		
+		self.filter_threshold = filter_threshold
+		self.estimator_class = PartitionedEnsembleRows
+
+	def _preprocess(self, X):
+		"""Preprocess data by subsetting to variables included at threshold,
+		then optional scaling."""
+		# Get variant subset
+		var_subset = self.var_sets_map[					# type: ignore
+			self.filter_threshold
+		]
+		X = X[self.covar_cols + var_subset]
+
+		if self.scaler is not None and not self.scaler_fit:
+			X = self.scaler.fit_transform(X)
+			self.scaler_fit = True
+		elif self.scaler is not None and self.scaler_fit:
+			X = self.scaler.transform(X)
+		
+		return X
+	
+	def _fit(
+		self,
+		X_train,
+		y_train,
+		var_sets_map,
+		covar_cols,
+		print_params=False,
+		**kwargs
+	):
+		"""Fit the model."""
+		if print_params:
+			pprint(self.params)
+			print(f"Filter threshold: {self.filter_threshold}", flush=True)
+
+		# Update var_sets_map and covar_cols
+		self.var_sets_map = var_sets_map
+		self.covar_cols = covar_cols
+		
+		super()._fit(X_train, y_train, **kwargs)

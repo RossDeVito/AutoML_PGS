@@ -41,6 +41,7 @@ class PRSTask(GenericTask):
 			ElasticNetEstimatorPRS,
 			ElasticNetEstimatorMultiThreshPRS,
 			NPartElasticNetEstimatorPRS,
+			NPartElasticNetEstimatorMultiThreshPRS,
 		)
 		
 		if self._estimators is None:
@@ -50,6 +51,7 @@ class PRSTask(GenericTask):
 				"elastic_net": ElasticNetEstimatorPRS,
 				"elastic_net_multi_thresh": ElasticNetEstimatorMultiThreshPRS,
 				"npart_elastic_net": NPartElasticNetEstimatorPRS,
+				"npart_elastic_net_multi_thresh": NPartElasticNetEstimatorMultiThreshPRS,
 			}
 
 		return self._estimators

@@ -7,4 +7,5 @@ from automl_prs.linear_estimators import (
 	ElasticNetEstimatorPRS,
 	ElasticNetEstimatorMultiThreshPRS,
 	NPartElasticNetEstimatorPRS,
+	NPartElasticNetEstimatorMultiThreshPRS,
 )
