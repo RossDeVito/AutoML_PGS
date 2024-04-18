@@ -195,13 +195,13 @@ def main():
 		var_subsets = new_var_subsets
 		
 		cutoff_keys = list(var_subsets.keys())
-		cutoff_counts = [len(var_subsets[k]) for k in cutoff_keys]
+		# cutoff_counts = [len(var_subsets[k]) for k in cutoff_keys]
 
 		cutoff_hp_space = {
 			'filter_threshold': {
 				'domain': tune.choice(cutoff_keys),
-				'low_cost_init_value': cutoff_keys[np.argmin(cutoff_counts)],
-				'cat_hp_cost': np.log(cutoff_counts).tolist(),
+				# 'low_cost_init_value': cutoff_keys[np.argmin(cutoff_counts)],
+				# 'cat_hp_cost': np.log(cutoff_counts).tolist(),
 			}
 		}
 	else:
