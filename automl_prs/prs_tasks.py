@@ -42,6 +42,8 @@ class PRSTask(GenericTask):
 			ElasticNetEstimatorMultiThreshPRS,
 			NPartElasticNetEstimatorPRS,
 			NPartElasticNetEstimatorMultiThreshPRS,
+			SGDRegressorPRS,
+			SGDRegressorMultiThreshPRS
 		)
 		
 		if self._estimators is None:
@@ -52,6 +54,8 @@ class PRSTask(GenericTask):
 				"elastic_net_multi_thresh": ElasticNetEstimatorMultiThreshPRS,
 				"npart_elastic_net": NPartElasticNetEstimatorPRS,
 				"npart_elastic_net_multi_thresh": NPartElasticNetEstimatorMultiThreshPRS,
+				"sgd_regressor": SGDRegressorPRS,
+				"sgd_regressor_multi_thresh": SGDRegressorMultiThreshPRS
 			}
 
 		return self._estimators

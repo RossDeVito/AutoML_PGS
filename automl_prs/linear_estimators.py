@@ -270,7 +270,6 @@ class NPartElasticNetEstimatorPRS(ElasticNetEstimatorPRS):
 		scale=SCALE_BY_DEFAULT,
 		**config
 	):
-		print("Initialize NPartElasticNetEstimatorPRS", flush=True)
 		super().__init__(
 			task,
 			n_partitions=n_partitions,
@@ -328,6 +327,169 @@ class NPartElasticNetEstimatorMultiThreshPRS(NPartElasticNetEstimatorPRS):
 		
 		self.filter_threshold = filter_threshold
 		self.estimator_class = PartitionedEnsembleRows
+
+	def _preprocess(self, X):
+		"""Preprocess data by subsetting to variables included at threshold,
+		then optional scaling."""
+		# Get variant subset
+		var_subset = self.var_sets_map[					# type: ignore
+			self.filter_threshold
+		]
+		X = X[self.covar_cols + var_subset]
+
+		if self.scaler is not None and not self.scaler_fit:
+			X = self.scaler.fit_transform(X)
+			self.scaler_fit = True
+		elif self.scaler is not None and self.scaler_fit:
+			X = self.scaler.transform(X)
+		
+		return X
+	
+	def _fit(
+		self,
+		X_train,
+		y_train,
+		var_sets_map,
+		covar_cols,
+		print_params=False,
+		**kwargs
+	):
+		"""Fit the model."""
+		if print_params:
+			pprint(self.params)
+			print(f"Filter threshold: {self.filter_threshold}", flush=True)
+
+		# Update var_sets_map and covar_cols
+		self.var_sets_map = var_sets_map
+		self.covar_cols = covar_cols
+		
+		super()._fit(X_train, y_train, **kwargs)
+
+
+class SGDRegressorPRS(SKLearnEstimator):
+	"""Stochastic gradient descent linear regression estimator."""
+
+	@classmethod
+	def search_space(cls, data_size, task):
+		space = {
+			"alpha": {
+				"domain": tune.loguniform(lower=1e-10, upper=2.0),
+				"init_value": 1e-4,
+			},
+			"l1_ratio": {
+				"domain": tune.uniform(0.0, 1),
+				"init_value": 1.0,
+			},
+			"n_iter_no_change": {
+				"domain": tune.lograndint(lower=3, upper=100),
+				"init_value": 10,
+				"low_cost_init_value": 3,
+			},
+			"tol": {
+				"domain": tune.loguniform(lower=1e-7, upper=5e-3),
+				"init_value": 1e-3,
+			},
+			"learning_rate": {
+				"domain": tune.choice(['optimal', 'invscaling', 'adaptive']),
+				"init_value": 'invscaling',
+			},
+			"eta0": {
+				"domain": tune.loguniform(lower=1e-7, upper=0.05),
+				"init_value": 0.01,
+			},
+		}
+		return space
+
+	def __init__(
+		self,
+		task="regression",
+		n_jobs=None,
+		scale=SCALE_BY_DEFAULT,
+		penalty="elasticnet",
+		max_iter=10000,
+		verbose=0,
+		**config
+	):
+		super().__init__(
+			task,
+			penalty=penalty,
+			verbose=verbose,
+			early_stopping=True,
+			max_iter=max_iter,
+			**config
+		)
+
+		if task != "regression":
+			raise ValueError(
+				"SGDRegressorPRS only supports regression tasks."
+			)
+		
+		if scale:
+			self.scaler = CustomMinMaxScaler()
+			self.scaler_fit = False
+		else:
+			self.scaler = None
+			self.scaler_fit = True
+
+		self.estimator_class = linear_model.SGDRegressor
+
+	def _preprocess(self, X):
+		"""Preprocess data, including scaling."""
+		if self.scaler is not None and not self.scaler_fit:
+			X = self.scaler.fit_transform(X)
+			self.scaler_fit = True
+		elif self.scaler is not None and self.scaler_fit:
+			X = self.scaler.transform(X)
+		
+		return X
+	
+	def _fit(
+		self,
+		X_train,
+		y_train,
+		print_params=False,
+		**kwargs
+	):
+		"""Fit the model."""
+		if print_params:
+			pprint(self.params)
+		
+		super()._fit(X_train, y_train, **kwargs)
+
+
+class SGDRegressorMultiThreshPRS(SGDRegressorPRS):
+	"""Stochastic gradient descent linear regression estimator for AutoML-PRS
+	with p-value and window size thresholds considered.
+	"""
+
+	def __init__(
+		self,
+		filter_threshold,
+		task="regression",
+		n_jobs=None,
+		scale=SCALE_BY_DEFAULT,
+		penalty="elasticnet",
+		max_iter=10000,
+		verbose=0,
+		**config
+	):
+		super().__init__(
+			task,
+			penalty=penalty,
+			verbose=verbose,
+			max_iter=max_iter,
+			**config
+		)
+		
+		if scale:
+			self.scaler = CustomMinMaxScaler()
+			self.scaler_fit = False
+		else:
+			self.scaler = None
+			self.scaler_fit = True
+
+		self.filter_threshold = filter_threshold
+		self.estimator_class = linear_model.SGDRegressor
 
 	def _preprocess(self, X):
 		"""Preprocess data by subsetting to variables included at threshold,
