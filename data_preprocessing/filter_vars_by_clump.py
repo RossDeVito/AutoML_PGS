@@ -23,10 +23,14 @@ section includes info on:
 Args:
 
 * -c, --clumps-file: Path to the '.clumps' file output by plink2.
+* -p, --pval-thresh-file: Path to the file containing the p-value threshold
+	used by prsice2.
 * -o, --out-dir: Directory in which to save the output files.
 	Default: '.'.
 * --var-id-col: Name of the column in the clumps file that contains the
 	variant IDs. Default: 'ID'.
+* --p-val-col: Name of the column in the clumps file that contains the
+	p-values. Default: 'P'.
 * --chrom-col: Name of the column in the clumps file that contains the
 	chromosome numbers. Default: '#CHROM'.
 * --pos-col: Name of the column in the clumps file that contains the base
@@ -62,6 +66,11 @@ def parse_args():
 		help='Path to the \'.clumps\' file output by plink2.'
 	)
 	parser.add_argument(
+		'-p', '--pval-thresh-file',
+		required=True,
+		help='Path to the file containing the p-value threshold used by prsice2.'
+	)
+	parser.add_argument(
 		'-o', '--out-dir',
 		default='.',
 		help='Directory in which to save the output files. Default: \'.\'.'
@@ -70,6 +79,11 @@ def parse_args():
 		'--var-id-col',
 		default='ID',
 		help='Name of the column in the clumps file that contains the variant IDs.'
+	)
+	parser.add_argument(
+		'--p-val-col',
+		default='P',
+		help='Name of the column in the clumps file that contains the p-values.'
 	)
 	parser.add_argument(
 		'--chrom-col',
@@ -91,7 +105,18 @@ if __name__ == '__main__':
 	args = parse_args()
 
 	# Load clumps file
-	ss_df = pd.read_csv(args.clumps_file, sep='\s+')
+	ss_df = pd.read_csv(args.clumps_file, sep='\s+') # type: ignore
+
+	# Load p-value threshold text file as string
+	with open(args.pval_thresh_file, 'r') as f:
+		pval_thresh = f.read().strip()
+
+	# Split the p-value threshold string by whitespace and get last
+	# value as float
+	pval_thresh = float(pval_thresh.split()[-1])
+
+	# Filter clumps to just those with p-values leq the threshold
+	ss_df = ss_df[ss_df[args.p_val_col] <= pval_thresh]
 
 	# Clump lead SNPS are values in the variant ID column
 	lead_variants = ss_df[args.var_id_col].to_list()
