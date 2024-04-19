@@ -72,7 +72,7 @@ if __name__ == '__main__':
 
 	# Load BASIL included variants
 	incl_id_series = pd.read_csv(
-		args.clumps_file,
+		args.basil_included_file,
 		header=None,
 	).iloc[:, 0]
 
@@ -94,7 +94,7 @@ if __name__ == '__main__':
 	
 	meta_dict = {
 		"filtering": {
-			"clumps_leads": True,
+			"basil": True,
 		},
 	}
 
